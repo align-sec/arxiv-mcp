@@ -1,4 +1,4 @@
-# ArXiv MCP Client & Server
+# arXiv MCP Client & Server
 
 A complete Model Context Protocol (MCP) implementation for searching arXiv papers using natural language queries powered by Claude.
 
