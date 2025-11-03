@@ -25,6 +25,17 @@ This project includes a client, server, and web interface:
 
 ## Installation
 
+0. Clone repo & create new environment with python 3.12
+```
+git clone git@github.com:align-sec/arxiv-mcp.git
+conda create -n mcp_env python=3.12
+conda activate mcp_env
+conda install pip
+pip install --upgrade pip
+pip install -r requirements.txt
+
+```
+
 1. Install dependencies:
 ```bash
 pip install -r requirements.txt
