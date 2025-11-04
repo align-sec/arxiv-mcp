@@ -7,6 +7,7 @@ This client discovers and calls tools through the MCP protocol rather than direc
 
 import asyncio
 import json
+import os
 import sys
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -34,9 +35,10 @@ class ArxivClient:
         print(f"[CLIENT] Connecting to MCP server...", file=sys.stderr)
         
         # Configure server parameters to run arxiv_server.py
+        server_script = os.path.join(os.path.dirname(__file__), "arxiv_server.py")
         server_params = StdioServerParameters(
             command="python",
-            args=["/Users/beccalynch/src/arxiv-mcp/arxiv_server.py"]
+            args=[server_script]
         )
         
         # Create MCP session and call tool
@@ -78,9 +80,10 @@ class ArxivClient:
         print(f"[CLIENT] Discovering available tools...", file=sys.stderr)
         
         # Configure server parameters
+        server_script = os.path.join(os.path.dirname(__file__), "arxiv_server.py")
         server_params = StdioServerParameters(
             command="python",
-            args=["/Users/beccalynch/src/arxiv-mcp/arxiv_server.py"]
+            args=[server_script]
         )
         
         # Create MCP session and list tools
