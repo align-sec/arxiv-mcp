@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 """
-Simplified ArXiv Client - calls server directly without MCP stdio transport
+ArXiv MCP Client - communicates with MCP server via proper protocol
 
-This version is optimized for use in Streamlit where stdio transport can be problematic.
+This client discovers and calls tools through the MCP protocol rather than direct imports.
 """
 
+import asyncio
 import json
 import sys
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from anthropic import Anthropic
-
-# Import the server's find_papers function directly
-from arxiv_server import find_papers #TODO IMPORT THE AUTHOR SEARCH TOOL WHEN YOU IMPLEMENT IT
+from mcp.client.session import ClientSession
+from mcp.client.stdio import StdioServerParameters, stdio_client
 
 
 class ArxivClient:
-    """Simplified client for searching arXiv papers."""
+    """MCP client for searching arXiv papers."""
     
     def __init__(self, anthropic_api_key: str):
         """
@@ -27,7 +27,80 @@ class ArxivClient:
             anthropic_api_key: API key for Anthropic Claude
         """
         self.anthropic_client = Anthropic(api_key=anthropic_api_key)
-        print(f"[CLIENT] Client initialized", file=sys.stderr)
+        print(f"[CLIENT] Client initialized with MCP support", file=sys.stderr)
+    
+    async def _call_tool_with_session(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
+        """Call a tool via MCP protocol with proper session management."""
+        print(f"[CLIENT] Connecting to MCP server...", file=sys.stderr)
+        
+        # Configure server parameters to run arxiv_server.py
+        server_params = StdioServerParameters(
+            command="python",
+            args=["/Users/beccalynch/src/arxiv-mcp/arxiv_server.py"]
+        )
+        
+        # Create MCP session and call tool
+        async with stdio_client(server_params) as (read, write):
+            async with ClientSession(read, write) as session:
+                # Initialize the session first
+                await session.initialize()
+                print(f"[CLIENT] ✓ MCP session initialized", file=sys.stderr)
+                
+                # List available tools for discovery
+                tools_response = await session.list_tools()
+                available_tools = {tool.name: tool for tool in tools_response.tools}
+                
+                print(f"[CLIENT] ✓ Connected to server, discovered {len(available_tools)} tools: {list(available_tools.keys())}", file=sys.stderr)
+                
+                if tool_name not in available_tools:
+                    raise ValueError(f"Tool '{tool_name}' not found. Available tools: {list(available_tools.keys())}")
+                
+                print(f"[CLIENT] Calling tool '{tool_name}' with args: {arguments}", file=sys.stderr)
+                result = await session.call_tool(tool_name, arguments)
+                
+                if result.isError:
+                    raise RuntimeError(f"Tool call failed: {result.content}")
+                
+                # Extract the actual result from MCP response
+                return result.content[0].text if result.content else None
+    
+    def list_available_tools(self) -> Dict[str, Any]:
+        """
+        List all available tools from the MCP server.
+        
+        Returns:
+            Dictionary mapping tool names to tool descriptions
+        """
+        return asyncio.run(self._list_tools_async())
+    
+    async def _list_tools_async(self) -> Dict[str, Any]:
+        """Async implementation of list_available_tools."""
+        print(f"[CLIENT] Discovering available tools...", file=sys.stderr)
+        
+        # Configure server parameters
+        server_params = StdioServerParameters(
+            command="python",
+            args=["/Users/beccalynch/src/arxiv-mcp/arxiv_server.py"]
+        )
+        
+        # Create MCP session and list tools
+        async with stdio_client(server_params) as (read, write):
+            async with ClientSession(read, write) as session:
+                # Initialize the session first
+                await session.initialize()
+                print(f"[CLIENT] ✓ MCP session initialized for tool discovery", file=sys.stderr)
+                
+                tools_response = await session.list_tools()
+                available_tools = {}
+                
+                for tool in tools_response.tools:
+                    available_tools[tool.name] = {
+                        "description": tool.description,
+                        "input_schema": tool.inputSchema if hasattr(tool, 'inputSchema') else None
+                    }
+                
+                print(f"[CLIENT] ✓ Discovered {len(available_tools)} tools: {list(available_tools.keys())}", file=sys.stderr)
+                return available_tools
     
     def _calculate_relevance_score(self, search_terms: List[str], paper: Dict[str, Any]) -> float:
         """Calculate relevance score based on search term matches."""
@@ -118,17 +191,26 @@ Return ONLY the JSON object, nothing else."""
         Returns:
             List of papers matching the search criteria
         """
+        return asyncio.run(self._search_papers_async(user_query))
+    
+    async def _search_papers_async(self, user_query: str) -> List[Dict[str, Any]]:
+        """Async implementation of search_papers."""
         print(f"[CLIENT] Step 1/4: Parsing query with Claude...", file=sys.stderr)
         params = self.parse_query_with_claude(user_query)
         print(f"[CLIENT] ✓ Query parsed: {json.dumps(params)}", file=sys.stderr)
         
-        print(f"[CLIENT] Step 2/4: Calling server's find_papers...", file=sys.stderr)
-        result_json = find_papers(
-            search_terms=params.get("search_terms", []),
-            min_date=params.get("min_date"),
-            max_results=params.get("max_results", 10)
-        )
-        print(f"[CLIENT] ✓ Received response from server", file=sys.stderr)
+        print(f"[CLIENT] Step 2/4: Calling MCP server's find_papers tool...", file=sys.stderr)
+        
+        # Call the find_papers tool via MCP protocol
+        tool_args = {
+            "search_terms": params.get("search_terms", []),
+            "max_results": params.get("max_results", 10)
+        }
+        if params.get("min_date"):
+            tool_args["min_date"] = params.get("min_date")
+            
+        result_json = await self._call_tool_with_session("find_papers", tool_args)
+        print(f"[CLIENT] ✓ Received response from MCP server", file=sys.stderr)
         
         print(f"[CLIENT] Step 3/4: Processing server response...", file=sys.stderr)
         papers = json.loads(result_json)
