@@ -8,16 +8,15 @@ and returns matching papers to the MCP client.
 
 import json
 import sys
-import urllib.parse
-import urllib.request
-import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+import requests
 from mcp.server.fastmcp import FastMCP
+import xml.etree.ElementTree as ET
 
 # arXiv API endpoint
-ARXIV_API_URL = "http://export.arxiv.org/api/query"
+ARXIV_API_URL = "https://export.arxiv.org/api/query"
 
 # XML namespaces used by arXiv API
 NAMESPACES = {
@@ -135,7 +134,7 @@ def find_papers(
     search_query = " AND ".join(query_parts)
     print(f"[SERVER] Built query: {search_query}", file=sys.stderr)
     
-    # Build the API URL
+    # Build the API URL parameters
     params = {
         'search_query': search_query,
         'start': 0,
@@ -144,18 +143,17 @@ def find_papers(
         'sortOrder': 'descending'
     }
     
-    url = f"{ARXIV_API_URL}?{urllib.parse.urlencode(params)}"
-    print(f"[SERVER] API URL: {url[:100]}...", file=sys.stderr)
+    print(f"[SERVER] Making request to arXiv with params: {params}", file=sys.stderr)
     
-    # Make the API request
-    print(f"[SERVER] Making HTTP request to arXiv...", file=sys.stderr)
+    # Make the API request using requests library
     try:
-        with urllib.request.urlopen(url) as response:
-            xml_data = response.read().decode('utf-8')
+        response = requests.get(ARXIV_API_URL, params=params, timeout=10)
+        response.raise_for_status()
+        xml_data = response.text
         print(f"[SERVER] ✓ Received {len(xml_data)} bytes from arXiv", file=sys.stderr)
     except Exception as e:
         print(f"[SERVER] ✗ Failed to query arXiv API: {e}", file=sys.stderr)
-        return json.dumps({"error": str(e)})
+        return json.dumps([])
     
     # Parse the XML response
     papers = parse_arxiv_response(xml_data, min_date)

@@ -206,6 +206,20 @@ def main():
         
         st.markdown("---")
         
+        st.header("📄 Direct Paper Link")
+        
+        # Paper link input
+        paper_link = st.text_input(
+            "Enter arXiv paper link",
+            placeholder="Example: https://arxiv.org/abs/2301.07041",
+            help="Enter a direct link to an arXiv paper to process it"
+        )
+        
+        # Process link button
+        process_link_button = st.button("📥 Process Paper Link", use_container_width=True)
+        
+        st.markdown("---")
+        
         # Info section
         with st.expander("ℹ️ How it works"):
             st.markdown("""
@@ -222,7 +236,36 @@ def main():
             """)
     
     # Main content area
-    if search_button:
+    if process_link_button:
+        if not api_key:
+            st.error("⚠️ Please enter your Anthropic API key in the sidebar")
+            return
+        
+        if not paper_link:
+            st.error("⚠️ Please enter a paper link in the sidebar")
+            return
+        
+        # Show loading state
+        print(f"\n[APP] User submitted paper link: {paper_link}")
+        
+        with st.spinner("📥 Processing paper link..."):
+            try:
+                client = ArxivClient(anthropic_api_key=api_key)
+                
+                # Process the paper link
+                result = client.process_paper_link(paper_link)
+                
+                if result:
+                    st.success("✅ Paper link processed successfully!")
+                    st.json(result)
+                else:
+                    st.warning("😔 Could not process the paper link. Please check if it's a valid arXiv URL.")
+                    
+            except Exception as e:
+                st.error(f"❌ An error occurred: {str(e)}")
+                st.info("💡 Make sure the link is a valid arXiv URL and your API key is valid")
+    
+    elif search_button:
         if not api_key:
             st.error("⚠️ Please enter your Anthropic API key in the sidebar")
             return

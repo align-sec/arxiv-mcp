@@ -76,7 +76,7 @@ Return ONLY the JSON object, nothing else."""
 
         print(f"[CLIENT] Calling Anthropic API to parse query...", file=sys.stderr)
         response = self.anthropic_client.messages.create(
-            model="claude-3-5-sonnet-20241022",
+            model="claude-sonnet-4-5",
             max_tokens=1024,
             system=system_prompt,
             messages=[{"role": "user", "content": user_query}]
@@ -132,6 +132,12 @@ Return ONLY the JSON object, nothing else."""
         
         print(f"[CLIENT] Step 3/4: Processing server response...", file=sys.stderr)
         papers = json.loads(result_json)
+        
+        # Handle case where server returned an error or empty result
+        if not isinstance(papers, list):
+            print(f"[CLIENT] ✗ Server returned non-list response: {type(papers)}", file=sys.stderr)
+            return []
+        
         print(f"[CLIENT] Found {len(papers)} papers", file=sys.stderr)
         
         if papers:
@@ -148,6 +154,27 @@ Return ONLY the JSON object, nothing else."""
         
         print(f"[CLIENT] ✓ Search complete! Returning {len(papers)} papers", file=sys.stderr)
         return papers
+    
+    def process_paper_link(self, paper_link: str) -> Optional[Dict[str, Any]]:
+        """
+        Process a direct arXiv paper link.
+        
+        Args:
+            paper_link: Direct link to an arXiv paper
+            
+        Returns:
+            Dictionary with processing result or None if failed
+        """
+        print(f"[CLIENT] Processing paper link: {paper_link}", file=sys.stderr)
+        
+        # Function stub - does nothing else for now
+        # TODO: Implement paper link processing logic
+        
+        return {
+            "status": "received",
+            "link": paper_link,
+            "message": "Paper link received successfully (stub implementation)"
+        }
 
 
 if __name__ == "__main__":
