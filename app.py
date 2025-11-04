@@ -6,7 +6,7 @@ A cute and simple interface for searching arXiv papers using natural language.
 """
 
 import streamlit as st
-from arxiv_client_simple import ArxivClient
+from arxiv_client import ArxivClient
 
 
 # Page configuration

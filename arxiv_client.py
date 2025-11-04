@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional
 from anthropic import Anthropic
 
 # Import the server's find_papers function directly
-from arxiv_server_fast import find_papers
+from arxiv_server import find_papers #TODO IMPORT THE AUTHOR SEARCH TOOL WHEN YOU IMPLEMENT IT
 
 
 class ArxivClient:
